@@ -19,18 +19,22 @@ def cargarNormalizarDatos():
 
     return x_train, y_train, x_test, y_test
 
-def crearModeloSesion1(neuronas, funcion, optimizador, validationSplit, epocas, batchSize, x_train, y_train):
+def crearModeloSesion1(neuronas, funcion, optimizador, neuronasSalida, activacionSalida):
     #Crear el modelo
     model = tf.keras.Sequential([tf.keras.layers.Dense(neuronas, activation=funcion, input_shape=(3072,)), 
-                                tf.keras.layers.Dense(10, activation='softmax')])
+                                tf.keras.layers.Dense(neuronasSalida, activation=activacionSalida)])
 
     # Compilar el modelo
     model.compile(optimizer=optimizador, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
+    return model
+
+
+def entrenarModelo(model, x_train, y_train, validationSplit, epocas, batchSize):
     #Entrenar el modelo
     history = model.fit(x_train, y_train, validation_split = validationSplit, epochs = epocas, batch_size = batchSize)
 
-    return model, history
+    return history
 
 def evaluarModelo(x_test, y_test, model):
     #Evaluamos el modelo con el conjunto de pruebas
@@ -41,9 +45,7 @@ def evaluarModelo(x_test, y_test, model):
 def saveModelIfBetter(test_acc, model):
     #Aquí leo de una carpeta para ver:
     #   1. Leo de un archivo de texto el mejor error hasta el momento
-    #   2. Si es mejor que el error actual, guardo el modelo
-    #   3. Guardo el error actual en el archivo de texto
-    #   4. Si los archivos no existen, los creo
+    #   2. Si es mejor que el error actual, guardo el modelo y guardo el error en el archivo de texto
 
     #1. Leo de un archivo de texto el mejor error hasta el momento
     try:
@@ -57,12 +59,10 @@ def saveModelIfBetter(test_acc, model):
         model.save("dataInfo/bestModel.h5")
         print("Modelo guardado")
         
-    #3. Guardo el error actual en el archivo de texto
-    with open("dataInfo/bestValue.txt", "w") as archivo:
-        pass #Lo abrimos en modeo escritura y así se borra
-    with open("dataInfo/bestValue.txt", "w") as archivo:
-        archivo.write(str(test_acc))
-
+        #3. Guardo el error actual en el archivo de texto
+        with open("dataInfo/bestValue.txt", "w") as archivo:
+            archivo.write(str(test_acc))
+    
 
 def plotModel(history):
     #Gráfica de entrenamiento
@@ -80,5 +80,25 @@ if __name__ == "__main__":
     #Cargamos el modelo y normalizamos
     x_train, y_train, x_test, y_test = cargarNormalizarDatos()
     
+    #Creamos el modelo
+    neuronas = 32
+    funcion = 'sigmoid'
+    optimizador = 'adam'
+    neuronasSalida = 10
+    activacionSalida = 'softmax'
+    model = crearModeloSesion1(neuronas, funcion, optimizador, neuronasSalida, activacionSalida)
     
-    saveModelIfBetter()
+    #Entrenamos el modelo
+    validationSplit = 0.2
+    epocas = 10
+    batchSize = 32
+    history = entrenarModelo(model, x_train, y_train, validationSplit, epocas, batchSize)
+    
+    #Evaluamos el modelo
+    test_loss, test_acc = evaluarModelo(x_test, y_test, model)
+    
+    #Guardamos el modelo si los resultados son mejores
+    saveModelIfBetter(test_acc, model)
+    
+    #Ploteamos los resultados
+    plotModel(history)
